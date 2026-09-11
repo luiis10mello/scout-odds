@@ -107,14 +107,18 @@ def calculate_scout_projection(home, away):
     prob_cartoes = round(random.uniform(55.0, 82.0), 1)
     prob_finalizacoes = round(random.uniform(60.0, 91.0), 1)
     prob_btts = round(random.uniform(68.0, 89.0), 1)
+    prob_gols = round(random.uniform(65.0, 92.0), 1)
+    prob_chutes_gol = round(random.uniform(58.0, 85.0), 1)
 
-    # Variedade de sugestões de entradas profissionais
+    # Variedade expandida de sugestões de entradas profissionais
     mercados_possiveis = [
         f"Dupla Hipótese ({home} ou Empate) + Over 1.5 Gols",
         f"Ambas Marcam (BTTS) - Sim (Odd Justa: @{round(odd_justa * 0.85, 2)})",
         f"Mais de 9.5 Escanteios na Partida (Prob: {prob_escanteios}%)",
         f"Vitória Simples Seca para {home} (Odd Justa: @{odd_justa})",
-        f"Empate Anula a Aposta (DNB) - {home}"
+        f"Empate Anula a Aposta (DNB) - {home}",
+        f"Total de Gols: Mais de 2.5 Gols (Prob: {prob_gols}%)",
+        f"Chutes ao Gol: Mais de 8.5 no Alvo (Prob: {prob_chutes_gol}%)"
     ]
     sugestao_escolhida = random.choice(mercados_possiveis)
 
@@ -127,6 +131,8 @@ def calculate_scout_projection(home, away):
         "corners": f"Mais de 9.5 ({prob_escanteios}% de chance)",
         "cards": f"Mais de 3.5 ({prob_cartoes}% de chance)",
         "shots": f"Mais de 24.5 ({prob_finalizacoes}% de chance)",
+        "goals": f"Mais de 2.5 Gols ({prob_gols}% de chance)",
+        "shots_on_target": f"Mais de 8.5 no Alvo ({prob_chutes_gol}% de chance)",
         "recommendation": sugestao_escolhida
     }
 
@@ -237,7 +243,7 @@ HTML_TEMPLATE = """
                 </div>
             </div>
 
-            <!-- Scout Avançado com Porcentagens -->
+            <!-- Scout Avançado com Porcentagens Expandidas -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
                 <h3 class="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider">Métricas de Scout e Probabilidades</h3>
                 <div class="space-y-3 text-sm">
@@ -256,6 +262,14 @@ HTML_TEMPLATE = """
                     <div class="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
                         <span class="text-slate-400">⚽ Ambas Marcam (BTTS)</span>
                         <span class="font-bold text-emerald-400">{{ projection.btts }}</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span class="text-slate-400">🥅 Total de Gols</span>
+                        <span class="font-bold text-cyan-400">{{ projection.goals }}</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span class="text-slate-400">🔥 Chutes no Alvo</span>
+                        <span class="font-bold text-amber-400">{{ projection.goals }}</span>
                     </div>
                 </div>
             </div>
