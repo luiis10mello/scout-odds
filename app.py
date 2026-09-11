@@ -110,7 +110,6 @@ def calculate_scout_projection(home, away):
     prob_gols = round(random.uniform(65.0, 92.0), 1)
     prob_chutes_gol = round(random.uniform(58.0, 85.0), 1)
 
-    # Variedade expandida de sugestões de entradas profissionais
     mercados_possiveis = [
         f"Dupla Hipótese ({home} ou Empate) + Over 1.5 Gols",
         f"Ambas Marcam (BTTS) - Sim (Odd Justa: @{round(odd_justa * 0.85, 2)})",
@@ -147,11 +146,11 @@ HTML_TEMPLATE = """
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
     <div class="max-w-md mx-auto p-4 pb-16">
-        <!-- Header com Contador Discreto -->
+        <!-- Header com Nome do Autor e Contador -->
         <header class="flex items-center justify-between mb-6 pt-2 border-b border-slate-800 pb-4">
             <div>
                 <h1 class="text-xl font-bold tracking-tight text-emerald-400">⚽ Scout & Odds Pro</h1>
-                <p class="text-xs text-slate-400">Motor de Análise Estatística Avançada</p>
+                <p class="text-xs text-slate-400">Criado por <span class="text-slate-200 font-semibold">Luís Carlos</span></p>
             </div>
             <div class="text-right">
                 <a href="/" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300 hover:bg-slate-800 inline-block mb-1">Início</a>
@@ -269,7 +268,7 @@ HTML_TEMPLATE = """
                     </div>
                     <div class="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
                         <span class="text-slate-400">🔥 Chutes no Alvo</span>
-                        <span class="font-bold text-amber-400">{{ projection.goals }}</span>
+                        <span class="font-bold text-amber-400">{{ projection.shots_on_target }}</span>
                     </div>
                 </div>
             </div>
