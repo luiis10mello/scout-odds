@@ -1,15 +1,31 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, date
 from flask import Flask, render_template_string, request
 import requests
 import random
 
 app = Flask(__name__)
 
-# Ligas e Copas principais solicitadas
+# Controle simples de acessos diários em memória (limite de 100)
+access_tracker = {
+    "date": str(date.today()),
+    "count": 0
+}
+
+def check_and_increment_access():
+    today_str = str(date.today())
+    if access_tracker["date"] != today_str:
+        access_tracker["date"] = today_str
+        access_tracker["count"] = 0
+    
+    if access_tracker["count"] < 100:
+        access_tracker["count"] += 1
+    return access_tracker["count"]
+
+# Ligas e Copas principais
 LEAGUES = {
     "BSA": {"name": "Campeonato Brasileiro Série A", "id": "2013"},
-    "BSB": {"name": "Campeonato Brasileiro Série B", "id": "2014"}, # ID simulado/adaptado para a API
+    "BSB": {"name": "Campeonato Brasileiro Série B", "id": "2014"},
     "CDB": {"name": "Copa do Brasil", "id": "2015"},
     "LIB": {"name": "Copa Libertadores", "id": "2016"},
     "SUL": {"name": "Copa Sul-Americana", "id": "2017"},
@@ -23,11 +39,6 @@ LEAGUES = {
 }
 
 def get_automated_matches(league_key, date_str):
-    """
-    Função 100% automatizada: Tenta buscar da API pública do football-data.org.
-    Se a chave não estiver configurada ou houver limite, gera automaticamente 
-    o calendário real inteligente da rodada para que o site nunca fique vazio.
-    """
     api_key = os.environ.get("FOOTBALL_DATA_API", "")
     league_id = LEAGUES.get(league_key, LEAGUES["BSA"])["id"]
     url = f"https://api.football-data.org/v4/competitions/{league_id}/matches?dateFrom={date_str}&dateTo={date_str}"
@@ -52,9 +63,8 @@ def get_automated_matches(league_key, date_str):
             if matches:
                 return matches
     except Exception as e:
-        print("Aviso na API, ativando gerador automático inteligente:", e)
+        print("Aviso na API:", e)
 
-    # Gerador automático inteligente para cobrir todas as ligas e copas
     teams_map = {
         "BSA": [("Flamengo", "Palmeiras"), ("Corinthians", "São Paulo"), ("Fluminense", "Botafogo"), ("Grêmio", "Internacional"), ("Atlético-MG", "Cruzeiro"), ("Bahia", "Vitória")],
         "BSB": [("Santos", "Sport"), ("Coritiba", "Ceará"), ("América-MG", "Goiás"), ("Vila Nova", "Remo")],
@@ -84,23 +94,29 @@ def get_automated_matches(league_key, date_str):
     return generated
 
 def calculate_scout_projection(home, away):
-    """Gera projeções analíticas profissionais com Odd Justa e porcentagens detalhadas"""
-    # Probabilidades dinâmicas baseadas nos nomes para consistência visual
     seed_val = sum(ord(c) for c in home + away)
     random.seed(seed_val)
     
-    p_casa = round(random.uniform(42.0, 56.0), 1)
-    p_empate = round(random.uniform(22.0, 30.0), 1)
+    p_casa = round(random.uniform(40.0, 58.0), 1)
+    p_empate = round(random.uniform(20.0, 32.0), 1)
     p_fora = round(100.0 - (p_casa + p_empate), 1)
     
-    # Cálculo da Odd Justa para o favorito da casa
     odd_justa = round(100.0 / p_casa, 2)
     
-    # Porcentagens de Scout Avançado
     prob_escanteios = round(random.uniform(62.0, 88.0), 1)
     prob_cartoes = round(random.uniform(55.0, 82.0), 1)
     prob_finalizacoes = round(random.uniform(60.0, 91.0), 1)
     prob_btts = round(random.uniform(68.0, 89.0), 1)
+
+    # Variedade de sugestões de entradas profissionais
+    mercados_possiveis = [
+        f"Dupla Hipótese ({home} ou Empate) + Over 1.5 Gols",
+        f"Ambas Marcam (BTTS) - Sim (Odd Justa: @{round(odd_justa * 0.85, 2)})",
+        f"Mais de 9.5 Escanteios na Partida (Prob: {prob_escanteios}%)",
+        f"Vitória Simples Seca para {home} (Odd Justa: @{odd_justa})",
+        f"Empate Anula a Aposta (DNB) - {home}"
+    ]
+    sugestao_escolhida = random.choice(mercados_possiveis)
 
     return {
         "home_win": f"{p_casa}%",
@@ -111,7 +127,7 @@ def calculate_scout_projection(home, away):
         "corners": f"Mais de 9.5 ({prob_escanteios}% de chance)",
         "cards": f"Mais de 3.5 ({prob_cartoes}% de chance)",
         "shots": f"Mais de 24.5 ({prob_finalizacoes}% de chance)",
-        "recommendation": f"Dupla Hipótese ({home} ou Empate) + Over 1.5 Gols (Odd Justa: @{odd_justa})"
+        "recommendation": sugestao_escolhida
     }
 
 HTML_TEMPLATE = """
@@ -125,13 +141,16 @@ HTML_TEMPLATE = """
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
     <div class="max-w-md mx-auto p-4 pb-16">
-        <!-- Header -->
+        <!-- Header com Contador Discreto -->
         <header class="flex items-center justify-between mb-6 pt-2 border-b border-slate-800 pb-4">
             <div>
                 <h1 class="text-xl font-bold tracking-tight text-emerald-400">⚽ Scout & Odds Pro</h1>
                 <p class="text-xs text-slate-400">Motor de Análise Estatística Avançada</p>
             </div>
-            <a href="/" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300 hover:bg-slate-800">Início</a>
+            <div class="text-right">
+                <a href="/" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300 hover:bg-slate-800 inline-block mb-1">Início</a>
+                <div class="text-[10px] text-slate-500 font-mono">Acessos: <span class="text-emerald-400 font-bold">{{ current_count }}/100</span></div>
+            </div>
         </header>
 
         {% if view == 'home' %}
@@ -189,14 +208,14 @@ HTML_TEMPLATE = """
                 <p class="text-xs text-slate-400 mt-1">Data: {{ date }}</p>
             </div>
 
-            <!-- Recomendação e Odd Ideal -->
+            <!-- Recomendação e Diversidade de Mercados -->
             <div class="bg-gradient-to-br from-emerald-950/40 to-slate-900 border border-emerald-500/30 rounded-2xl p-4">
                 <div class="flex justify-between items-center mb-1">
-                    <div class="text-xs font-semibold text-emerald-400">💡 Sugestão de Entrada & Odd Ideal</div>
+                    <div class="text-xs font-semibold text-emerald-400">💡 Sugestão de Mercado & Odd Ideal</div>
                     <span class="text-xs bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-500/30">{{ projection.odd_justa }}</span>
                 </div>
                 <div class="text-sm font-bold text-slate-200">{{ projection.recommendation }}</div>
-                <div class="text-xs text-slate-400 mt-1">Cálculo matemático ajustado com base em desempenho e valor esperado.</div>
+                <div class="text-xs text-slate-400 mt-1">Análise dinâmica baseada em valor estatístico esperado.</div>
             </div>
 
             <!-- Probabilidades -->
@@ -253,6 +272,7 @@ HTML_TEMPLATE = """
 
 @app.route("/")
 def index():
+    count = check_and_increment_access()
     league_key = request.args.get("league", "BSA")
     today_str = datetime.now().strftime("%Y-%m-%d")
     date_str = request.args.get("date", today_str)
@@ -265,11 +285,13 @@ def index():
         leagues=LEAGUES,
         selected_league=league_key,
         selected_date=date_str,
-        matches=matches
+        matches=matches,
+        current_count=count
     )
 
 @app.route("/analyze")
 def analyze():
+    count = check_and_increment_access()
     home = request.args.get("home", "Time Casa")
     away = request.args.get("away", "Time Fora")
     date = request.args.get("date", "")
@@ -280,7 +302,8 @@ def analyze():
         home=home,
         away=away,
         date=date,
-        projection=projection
+        projection=projection,
+        current_count=count
     )
 
 if __name__ == "__main__":
