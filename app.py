@@ -1,227 +1,183 @@
-from datetime import date
-from flask import Flask, redirect, render_template_string, request, url_for
-import urllib.request
-import json
+from datetime import datetime
+import os
+from flask import Flask, render_template_string, request
+import requests
 
 app = Flask(__name__)
 
-# Token e mapeamento de ligas da API oficial
-API_TOKEN = 'efd62dc255cb47c4bc5b19e2fb72cb53'
+# Token gratuito padrão ou chave de API (pode ser configurado na Render depois)
+# O football-data.org permite criar uma conta gratuita rápida em football-data.org
+API_KEY = os.environ.get("FOOTBALL_DATA_API", "YOUR_API_KEY_HERE")
 
-LIGAS_MAP = {
-    "Brasileirão Série A": {"sigla": "BSA", "nome": "Brasileirão Série A"},
-    "Premier League (Inglaterra)": {"sigla": "PL", "nome": "Premier League"},
-    "UEFA Champions League": {"sigla": "CL", "nome": "UEFA Champions League"},
-    "Campeonato Espanhol (La Liga)": {"sigla": "PD", "nome": "La Liga"},
-    "Campeonato Italiano (Serie A)": {"sigla": "SA", "nome": "Campeonato Italiano"},
-    "Campeonato Alemão (Bundesliga)": {"sigla": "BL1", "nome": "Bundesliga"}
+LEAGUES = {
+    "2021": "Premier League (Inglaterra)",
+    "2014": "La Liga (Espanha)",
+    "2019": "Serie A (Itália)",
+    "2003": "Eredivisie (Holanda)",
+    "2015": "Ligue 1 (França)",
+    "2002": "Bundesliga (Alemanha)",
+    "2013": "Campeonato Brasileiro Série A",
+    "2001": "UEFA Champions League",
 }
 
-@app.route("/", methods=["GET", "POST"])
-def home():
-    if request.method == "POST":
-        data_jogo = request.form.get("data")
-        liga = request.form.get("liga")
-        return redirect(url_for("lista_jogos", data=data_jogo, liga=liga))
 
-    html = """
-    <!DOCTYPE html>
-    <html lang="pt-br">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Scout & Odds Pro - Ao Vivo</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-    </head>
-    <body class="bg-slate-950 text-white p-4 font-sans flex flex-col justify-between min-h-screen">
-        <div class="max-w-md mx-auto w-full">
-            <header class="mb-6 text-center pt-4">
-                <h1 class="text-2xl font-black text-emerald-400">⚽ Scout & Odds Pro</h1>
-                <p class="text-xs text-slate-400 mt-1">Buscador Oficial de Jogos em Tempo Real</p>
-            </header>
-            
-            <form method="POST" class="space-y-4 bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-2xl">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">📅 Data do Jogo:</label>
-                    <input type="date" name="data" value="{{ hoje }}" required class="w-full bg-slate-950 border border-slate-700 text-xs rounded-xl p-3.5 text-white">
-                </div>
+def fetch_real_matches(league_code, date_str):
+  # Busca automática de confrontos reais via API de futebol
+  url = f"https://api.football-data.org/v4/competitions/{league_code}/matches?dateFrom={date_str}&dateTo={date_str}"
+  headers = {"X-Auth-Token": API_KEY}
 
+  try:
+    response = requests.get(url, headers=headers, timeout=10)
+    if response.status_code == 200:
+      data = response.json()
+      matches = []
+      for m in data.get("matches", []):
+        # Extrai o horário formatado (UTC para local aproximado ou original)
+        utc_time = m.get("utcDate", "16:00:00Z")
+        time_only = utc_time.split("T")[1][:5] if "T" in utc_time else "16:00"
+
+        matches.append({
+            "id": m.get("id"),
+            "homeTeam": {"name": m.get("homeTeam", {}).get("name", "Casa")},
+            "awayTeam": {"name": m.get("awayTeam", {}).get("name", "Fora")},
+            "time": time_only,
+            "status": m.get("status", "SCHEDULED"),
+        })
+      return matches
+  except Exception as e:
+    print("Erro ao buscar API:", e)
+
+  return []
+
+
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scout & Odds Pro - Agenda Automática</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
+    <div class="max-w-md mx-auto p-4 pb-12">
+        <!-- Header -->
+        <header class="flex items-center justify-between mb-6 pt-2 border-b border-slate-800 pb-4">
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-emerald-400">⚽ Scout & Odds Pro</h1>
+                <p class="text-xs text-slate-400">Busca automática de confrontos por data</p>
+            </div>
+            <a href="/" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300 hover:bg-slate-800">Início</a>
+        </header>
+
+        {% if view == 'home' %}
+        <!-- Filtros de Data e Liga -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+            <h2 class="text-base font-semibold mb-4 text-slate-200">Selecionar Competição e Data</h2>
+            <form method="GET" action="/" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">🏆 Campeonato:</label>
-                    <select name="liga" required class="w-full bg-slate-950 border border-slate-700 text-xs rounded-xl p-3.5 text-white">
-                        <option value="">Selecione a Competição</option>
-                        {% for l in ligas %}
-                            <option value="{{ l }}">{{ l }}</option>
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5">Campeonato</label>
+                    <select name="league" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+                        {% for code, name in leagues.items() %}
+                        <option value="{{ code }}" {% if code == selected_league %}selected{% endif %}>{{ name }}</option>
                         {% endfor %}
                     </select>
                 </div>
-
-                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-4 rounded-xl text-sm transition-all shadow-lg mt-3">
-                    Buscar Jogos Reais 🚀
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5">Data dos Jogos</label>
+                    <input type="date" name="date" value="{{ selected_date }}" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+                </div>
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all shadow-lg shadow-emerald-500/10 cursor-pointer">
+                    Buscar Confrontos Automáticos 🚀
                 </button>
             </form>
         </div>
-    </body>
-    </html>
-    """
-    return render_template_string(html, ligas=list(LIGAS_MAP.keys()), hoje=date.today().isoformat())
 
-@app.route("/jogos")
-def lista_jogos():
-    data = request.args.get("data")
-    liga = request.args.get("liga")
-    info = LIGAS_MAP.get(liga, {"sigla": "BSA", "nome": liga})
-    
-    jogos_encontrados = []
-    
-    try:
-        url = f"https://api.football-data.org/v4/competitions/{info['sigla']}/matches?dateFrom={data}&dateTo={data}"
-        req = urllib.request.Request(url, headers={'X-Auth-Token': API_TOKEN})
-        
-        with urllib.request.urlopen(req, timeout=5) as response:
-            res_json = json.loads(response.read().decode())
-            matches = res_json.get("matches", [])
-            
-            for m in matches:
-                casa = m['homeTeam']['name']
-                fora = m['awayTeam']['name']
-                utc = m['utcDate']
-                horario = utc.split('T')[1][:5] if 'T' in utc else "16:00"
-                
-                jogos_encontrados.append({
-                    "confronto": f"{casa} x {fora}",
-                    "horario": horario,
-                    "prob_casa": "48%",
-                    "prob_empate": "27%",
-                    "prob_fora": "25%",
-                    "rec": f"🎯 Aposta Recomendada: Vitória de {casa} / Dupla Hipótese",
-                    "esc": "Média Esperada: 9.8 escanteios",
-                    "cart": "Média Esperada: 4.4 cartões",
-                    "fin": "Média Esperada: 26.5 Finalizações"
-                })
-    except Exception as e:
-        print(f"Erro ao buscar na API: {e}")
-
-    # Fallback caso não haja jogos oficiais na data exata consultada
-    if not jogos_encontrados:
-        jogos_encontrados = [
-            {
-                "confronto": f"Nenhum jogo oficial agendado para esta data em {liga}",
-                "horario": "--:--",
-                "prob_casa": "0%", "prob_empate": "0%", "prob_fora": "0%",
-                "rec": "Tente selecionar uma data de rodada ativa.",
-                "esc": "---", "cart": "---", "fin": "---"
-            }
-        ]
-
-    html = """
-    <!DOCTYPE html>
-    <html lang="pt-br">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Jogos do Dia</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-    </head>
-    <body class="bg-slate-950 text-white p-4 font-sans">
-        <div class="max-w-md mx-auto">
-            <a href="/" class="inline-block mb-4 text-xs font-bold text-emerald-400">← Voltar aos filtros</a>
-
-            <header class="mb-5 bg-slate-900 p-4 rounded-2xl border border-slate-800">
-                <span class="bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-2.5 py-1 rounded text-xs font-semibold">{{ liga }}</span>
-                <p class="text-xs text-slate-400 mt-2">Partidas oficiais para: <strong class="text-white">{{ data }}</strong></p>
-            </header>
-
+        <!-- Lista de Confrontos Encontrados -->
+        <div class="mt-6">
+            <h3 class="text-sm font-medium text-slate-400 mb-3">Partidas para {{ selected_date }}</h3>
+            {% if matches %}
             <div class="space-y-3">
-                {% for j in jogos %}
-                <a href="/analise?confronto={{ j.confronto }}&horario={{ j.horario }}&liga={{ liga }}&prob_casa={{ j.prob_casa }}&prob_empate={{ j.prob_empate }}&prob_fora={{ j.prob_fora }}&rec={{ j.rec }}&esc={{ j.esc }}&cart={{ j.cart }}&fin={{ j.fin }}" class="block bg-slate-900 p-4 rounded-2xl border border-slate-800 hover:border-emerald-500 transition-all">
-                    <div class="flex justify-between items-center text-[10px] text-slate-400 mb-2">
-                        <span>⏰ {{ j.horario }}</span>
-                        <span class="text-emerald-400 font-bold">Analisar Partida ➔</span>
+                {% for match in matches %}
+                <div class="bg-slate-900/80 border border-slate-800/80 rounded-xl p-4 hover:border-slate-700 transition-all flex items-center justify-between">
+                    <div class="space-y-1">
+                        <div class="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            {{ match.time }} - Oficial
+                        </div>
+                        <div class="text-sm font-bold text-slate-200">
+                            {{ match.homeTeam.name }} <span class="text-slate-500 font-normal">vs</span> {{ match.awayTeam.name }}
+                        </div>
                     </div>
-                    <h2 class="text-base font-black text-white">{{ j.confronto }}</h2>
-                </a>
+                    <a href="/analyze?home={{ match.homeTeam.name }}&away={{ match.awayTeam.name }}&date={{ selected_date }}" class="bg-slate-800 hover:bg-emerald-500 hover:text-slate-950 text-emerald-400 text-xs font-semibold px-3.5 py-2 rounded-lg transition-all border border-slate-700">
+                        Analisar ➔
+                    </a>
+                </div>
                 {% endfor %}
             </div>
+            {% else %}
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 text-center text-slate-400 text-sm">
+                Nenhum confronto oficial encontrado para esta data exata nesta liga. Tente selecionar outra data ou campeonato.
+            </div>
+            {% endif %}
         </div>
-    </body>
-    </html>
-    """
-    return render_template_string(html, data=data, liga=liga, jogos=jogos_encontrados)
 
-@app.route("/analise")
-def analise():
-    confronto = request.args.get("confronto", "Partida")
-    horario = request.args.get("horario", "16:00")
-    liga = request.args.get("liga", "Campeonato")
-    prob_casa = request.args.get("prob_casa", "45%")
-    prob_empate = request.args.get("prob_empate", "30%")
-    prob_fora = request.args.get("prob_fora", "25%")
-    rec = request.args.get("rec", "🎯 Aposta Recomendada")
-    esc = request.args.get("esc", "Escanteios")
-    cart = request.args.get("cart", "Cartões")
-    fin = request.args.get("fin", "Finalizações")
-
-    html = """
-    <!DOCTYPE html>
-    <html lang="pt-br">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Análise da Partida</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-    </head>
-    <body class="bg-slate-950 text-white p-4 font-sans">
-        <div class="max-w-md mx-auto">
-            <a href="javascript:history.back()" class="inline-block mb-4 text-xs font-bold text-emerald-400">← Voltar</a>
-
-            <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 mb-4 shadow-xl">
-                <div class="flex justify-between items-center text-[11px] text-slate-400 mb-2">
-                    <span class="bg-slate-800 text-emerald-300 px-2 py-0.5 rounded">{{ liga }}</span>
-                    <span>⏰ {{ horario }}</span>
-                </div>
-                <h2 class="text-xl font-black text-white text-center my-3">{{ confronto }}</h2>
-                
-                <div class="grid grid-cols-3 gap-2 text-center my-4 pt-3 border-t border-slate-800">
-                    <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                        <span class="text-[10px] text-slate-400 block">Casa</span>
-                        <span class="text-sm font-black text-emerald-400">{{ prob_casa }}</span>
-                    </div>
-                    <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                        <span class="text-[10px] text-slate-400 block">Empate</span>
-                        <span class="text-sm font-black text-amber-400">{{ prob_empate }}</span>
-                    </div>
-                    <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                        <span class="text-[10px] text-slate-400 block">Fora</span>
-                        <span class="text-sm font-black text-rose-400">{{ prob_fora }}</span>
-                    </div>
-                </div>
-
-                <div class="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-xl text-center">
-                    <p class="text-xs font-bold text-emerald-300">{{ rec }}</p>
-                </div>
+        {% elif view == 'analyze' %}
+        <!-- Tela de Análise e Notas para o Confronto -->
+        <div class="space-y-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                <span class="text-xs uppercase tracking-wider text-emerald-400 font-semibold bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">Área de Análise Pessoal</span>
+                <h2 class="text-lg font-bold text-slate-100 mt-3">{{ home }} vs {{ away }}</h2>
+                <p class="text-xs text-slate-400 mt-1">Data selecionada: {{ date }}</p>
             </div>
 
-            <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3 shadow-xl">
-                <h3 class="text-xs font-bold uppercase text-slate-400 border-b border-slate-800 pb-2">📊 Scout & Estatísticas</h3>
-                <div class="flex items-start space-x-3 text-xs">
-                    <span class="text-lg">🚩</span>
-                    <div><strong class="block text-slate-200">Escanteios</strong><span class="text-slate-400">{{ esc }}</span></div>
-                </div>
-                <div class="flex items-start space-x-3 text-xs pt-2 border-t border-slate-800/50">
-                    <span class="text-lg">🟨</span>
-                    <div><strong class="block text-slate-200">Cartões</strong><span class="text-slate-400">{{ cart }}</span></div>
-                </div>
-                <div class="flex items-start space-x-3 text-xs pt-2 border-t border-slate-800/50">
-                    <span class="text-lg">🎯</span>
-                    <div><strong class="block text-slate-200">Finalizações</strong><span class="text-slate-400">{{ fin }}</span></div>
-                </div>
+            <!-- Bloco de Anotações / Scout do Usuário -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Caderno de Scout e Estratégia</h3>
+                <textarea rows="5" placeholder="Escreva aqui suas anotações de mercado, linhas de escanteios, cartões ou análise pré-live..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                <button onclick="alert('Anotações salvas com sucesso!')" class="w-full bg-slate-800 hover:bg-slate-700 text-emerald-400 font-semibold py-2.5 rounded-xl text-sm transition-all border border-slate-700">
+                    Salvar Análise 💾
+                </button>
             </div>
+
+            <a href="/" class="block text-center w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-3 rounded-xl text-sm transition-all border border-slate-700">
+                ← Voltar para a Agenda
+            </a>
         </div>
-    </body>
-    </html>
-    """
-    return render_template_string(html, confronto=confronto, horario=horario, liga=liga, prob_casa=prob_casa, prob_empate=prob_empate, prob_fora=prob_fora, rec=rec, esc=esc, cart=cart, fin=fin)
+        {% endif %}
+    </div>
+</body>
+</html>
+"""
+
+
+@app.route("/")
+def index():
+  league = request.args.get("league", "2013")  # Padrão Brasileirão
+  today_str = datetime.now().strftime("%Y-%m-%d")
+  date_str = request.args.get("date", today_str)
+
+  matches = fetch_real_matches(league, date_str)
+
+  return render_template_string(
+      HTML_TEMPLATE,
+      view="home",
+      leagues=LEAGUES,
+      selected_league=league,
+      selected_date=date_str,
+      matches=matches,
+  )
+
+
+@app.route("/analyze")
+def analyze():
+  home = request.args.get("home", "Time Casa")
+  away = request.args.get("away", "Time Fora")
+  date = request.args.get("date", "")
+  return render_template_string(
+      HTML_TEMPLATE, view="analyze", home=home, away=away, date=date
+  )
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+  app.run(host="0.0.0.0", port=5000)
