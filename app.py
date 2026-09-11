@@ -131,7 +131,7 @@ def calculate_scout_projection(home, away):
         {"mercado": "Ambas Marcam (BTTS) - Sim", "linha": "BTTS Sim", "prob_val": prob_btts, "prob_str": f"{prob_btts}%", "odd": odd_btts}
     ]
 
-    # FILTRO RIGOROSO: Seleciona apenas o que tiver 70% ou mais
+    # FILTRO RIGOROSO: Seleciona apenas o que tiver 70% ou mais e calcula a acumulada real
     bilhete_filtrado = []
     odd_acumulada = 1.0
     for item in candidatos:
@@ -152,7 +152,7 @@ def calculate_scout_projection(home, away):
         "shots": f"Mais de 24.5 ({prob_finalizacoes}% de chance)",
         "recommendation": sugestao_escolhida,
         "bilhete": bilhete_filtrado,
-        "odd_combinada": odd_combinada_final  # Retorna limpo sem a arroba duplicada
+        "odd_combinada": f"{odd_combinada_final:.2f}"
     }
 
 HTML_TEMPLATE = """
