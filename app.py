@@ -103,43 +103,20 @@ def calculate_scout_projection(home, away):
     
     odd_justa = round(100.0 / p_casa, 2)
     
-    # Probabilidades estatísticas consistentes
-    prob_escanteios = round(random.uniform(65.0, 85.0), 1)
-    prob_cartoes = round(random.uniform(68.0, 86.0), 1)
-    prob_finalizacoes = round(random.uniform(72.0, 90.0), 1)
-    prob_btts = round(random.uniform(70.0, 88.0), 1)
+    prob_escanteios = round(random.uniform(62.0, 88.0), 1)
+    prob_cartoes = round(random.uniform(55.0, 82.0), 1)
+    prob_finalizacoes = round(random.uniform(60.0, 91.0), 1)
+    prob_btts = round(random.uniform(68.0, 89.0), 1)
 
-    # Odds proporcionais exatas baseadas na probabilidade real com margem de mercado (~5%)
-    odd_escanteios = round((100.0 / prob_escanteios) * 1.05, 2)
-    odd_cartoes = round((100.0 / prob_cartoes) * 1.05, 2)
-    odd_finalizacoes = round((100.0 / prob_finalizacoes) * 1.05, 2)
-    odd_btts = round((100.0 / prob_btts) * 1.05, 2)
-
+    # Variedade de sugestões de entradas profissionais
     mercados_possiveis = [
         f"Dupla Hipótese ({home} ou Empate) + Over 1.5 Gols",
-        f"Ambas Marcam (BTTS) - Sim (Odd Justa: @{odd_btts})",
+        f"Ambas Marcam (BTTS) - Sim (Odd Justa: @{round(odd_justa * 0.85, 2)})",
         f"Mais de 9.5 Escanteios na Partida (Prob: {prob_escanteios}%)",
         f"Vitória Simples Seca para {home} (Odd Justa: @{odd_justa})",
         f"Empate Anula a Aposta (DNB) - {home}"
     ]
     sugestao_escolhida = random.choice(mercados_possiveis)
-
-    candidatos = [
-        {"mercado": "Mais de 9.5 Escanteios na Partida", "linha": "Over 9.5 Cantos", "prob_val": prob_escanteios, "prob_str": f"{prob_escanteios}%", "odd": odd_escanteios},
-        {"mercado": "Mais de 3.5 Cartões Amarelos", "linha": "Over 3.5 Cartões", "prob_val": prob_cartoes, "prob_str": f"{prob_cartoes}%", "odd": odd_cartoes},
-        {"mercado": "Mais de 24.5 Finalizações Totais", "linha": "Over 24.5 Chutes", "prob_val": prob_finalizacoes, "prob_str": f"{prob_finalizacoes}%", "odd": odd_finalizacoes},
-        {"mercado": "Ambas Marcam (BTTS) - Sim", "linha": "BTTS Sim", "prob_val": prob_btts, "prob_str": f"{prob_btts}%", "odd": odd_btts}
-    ]
-
-    # FILTRO RIGOROSO: Seleciona apenas o que tiver 70% ou mais e calcula a acumulada real
-    bilhete_filtrado = []
-    odd_acumulada = 1.0
-    for item in candidatos:
-        if item["prob_val"] >= 70.0:
-            bilhete_filtrado.append(item)
-            odd_acumulada *= item["odd"]
-
-    odd_combinada_final = round(odd_acumulada, 2) if bilhete_filtrado else 1.00
 
     return {
         "home_win": f"{p_casa}%",
@@ -150,9 +127,7 @@ def calculate_scout_projection(home, away):
         "corners": f"Mais de 9.5 ({prob_escanteios}% de chance)",
         "cards": f"Mais de 3.5 ({prob_cartoes}% de chance)",
         "shots": f"Mais de 24.5 ({prob_finalizacoes}% de chance)",
-        "recommendation": sugestao_escolhida,
-        "bilhete": bilhete_filtrado,
-        "odd_combinada": f"{odd_combinada_final:.2f}"
+        "recommendation": sugestao_escolhida
     }
 
 HTML_TEMPLATE = """
@@ -283,38 +258,6 @@ HTML_TEMPLATE = """
                         <span class="font-bold text-emerald-400">{{ projection.btts }}</span>
                     </div>
                 </div>
-            </div>
-
-            <!-- BILHETE INTELIGENTE DE ALTA PROBABILIDADE (RODAPÉ - FILTRO 70%+) -->
-            <div class="bg-slate-900 border border-emerald-500/40 rounded-2xl p-4 shadow-xl">
-                <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
-                    <div>
-                        <span class="text-[10px] uppercase tracking-wider bg-emerald-500/10 text-emerald-400 font-bold px-2 py-0.5 rounded border border-emerald-500/20">Bilhete Inteligente 70%+</span>
-                        <h3 class="text-sm font-bold text-slate-100 mt-1">Seleções Validadas Estatisticamente</h3>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xs text-slate-400">Odd Combinada:</span>
-                        <div class="text-sm font-bold text-emerald-400">@{{ projection.odd_combinada }}</div>
-                    </div>
-                </div>
-
-                {% if projection.bilhete %}
-                <div class="space-y-2 mb-3">
-                    {% for item in projection.bilhete %}
-                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between text-xs">
-                        <div>
-                            <div class="font-bold text-slate-200">{{ item.mercado }}</div>
-                            <div class="text-[10px] text-emerald-400">Probabilidade: {{ item.prob_str }}</div>
-                        </div>
-                        <span class="text-slate-300 font-bold">@{{ item.odd }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="text-xs text-slate-400 text-center py-3 bg-slate-950 rounded-xl border border-slate-800">
-                    Nenhum mercado atingiu o filtro mínimo de 70% de probabilidade nesta partida.
-                </div>
-                {% endif %}
             </div>
 
             <a href="/" class="block text-center w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-3 rounded-xl text-sm transition-all border border-slate-700">
