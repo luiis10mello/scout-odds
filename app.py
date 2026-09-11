@@ -103,36 +103,38 @@ def calculate_scout_projection(home, away):
     
     odd_justa = round(100.0 / p_casa, 2)
     
-    # Ajuste de probabilidades a partir de 70% até 86% para flexibilizar as análises
-    prob_escanteios = round(random.uniform(70.5, 85.0), 1)
-    prob_cartoes = round(random.uniform(71.0, 84.0), 1)
-    prob_finalizacoes = round(random.uniform(72.0, 86.0), 1)
-    prob_btts = round(random.uniform(70.0, 83.5), 1)
+    prob_escanteios = round(random.uniform(62.0, 88.0), 1)
+    prob_cartoes = round(random.uniform(55.0, 82.0), 1)
+    prob_finalizacoes = round(random.uniform(60.0, 91.0), 1)
+    prob_btts = round(random.uniform(68.0, 89.0), 1)
 
-    # Conversão proporcional aproximada de probabilidade para Odds de mercado
-    odd_escanteios = round(100.0 / prob_escanteios * 1.05, 2)
-    odd_cartoes = round(100.0 / prob_cartoes * 1.05, 2)
-    odd_finalizacoes = round(100.0 / prob_finalizacoes * 1.05, 2)
-    odd_btts = round(100.0 / prob_btts * 1.05, 2)
-
+    # Variedade de sugestões de entradas profissionais
     mercados_possiveis = [
-        f"Dupla Hipótese Segura ({home} ou Empate) + Over 1.5 Gols",
-        f"Empate Anula a Aposta (DNB) - {home}",
-        f"Cantos de Pressão: Mais de 7.5 Escanteios Totais",
-        f"Gol no 1º Tempo (Over 0.5 HT) Garantido",
-        f"Total Asiático: Mais de 1.5 Gols na Partida"
+        f"Dupla Hipótese ({home} ou Empate) + Over 1.5 Gols",
+        f"Ambas Marcam (BTTS) - Sim (Odd Justa: @{round(odd_justa * 0.85, 2)})",
+        f"Mais de 9.5 Escanteios na Partida (Prob: {prob_escanteios}%)",
+        f"Vitória Simples Seca para {home} (Odd Justa: @{odd_justa})",
+        f"Empate Anula a Aposta (DNB) - {home}"
     ]
     sugestao_escolhida = random.choice(mercados_possiveis)
 
-    # Bilhete Pró ajustado para o patamar de 70%+
-    bilhete_itens = [
-        {"mercado": "Mais de 15.5 Finalizações Totais na Partida", "linha": "Over 15.5 Chutes", "prob": f"{prob_finalizacoes}%", "odd": f"{odd_finalizacoes:.2f}"},
-        {"mercado": "Mais de 6.5 Escanteios na Partida", "linha": "Over 6.5", "prob": f"{prob_escanteios}%", "odd": f"{odd_escanteios:.2f}"},
-        {"mercado": "Mais de 1.5 Gols no Jogo (Asiático)", "linha": "Over 1.5", "prob": f"{prob_btts}%", "odd": f"{odd_btts:.2f}"},
-        {"mercado": "Mais de 1.5 Cartões Amarelos", "linha": "Over 1.5", "prob": f"{prob_cartoes}%", "odd": f"{odd_cartoes:.2f}"}
+    # Coleta de possíveis itens para o bilhete
+    candidatos = [
+        {"mercado": "Mais de 9.5 Escanteios na Partida", "linha": "Over 9.5 Cantos", "prob_val": prob_escanteios, "prob_str": f"{prob_escanteios}%", "odd": round(100.0 / prob_escanteios * 1.08, 2)},
+        {"mercado": "Mais de 3.5 Cartões Amarelos", "linha": "Over 3.5 Cartões", "prob_val": prob_cartoes, "prob_str": f"{prob_cartoes}%", "odd": round(100.0 / prob_cartoes * 1.08, 2)},
+        {"mercado": "Mais de 24.5 Finalizações Totais", "linha": "Over 24.5 Chutes", "prob_val": prob_finalizacoes, "prob_str": f"{prob_finalizacoes}%", "odd": round(100.0 / prob_finalizacoes * 1.08, 2)},
+        {"mercado": "Ambas Marcam (BTTS) - Sim", "linha": "BTTS Sim", "prob_val": prob_btts, "prob_str": f"{prob_btts}%", "odd": round(100.0 / prob_btts * 1.08, 2)}
     ]
-    
-    odd_combinada = round(odd_finalizacoes * odd_escanteios * odd_btts * odd_cartoes, 2)
+
+    # FILTRO ESTrito: Puxa para o bilhete apenas o que tiver 70% ou mais
+    bilhete_filtrado = []
+    odd_acumulada = 1.0
+    for item in candidatos:
+        if item["prob_val"] >= 70.0:
+            bilhete_filtrado.append(item)
+            odd_acumulada *= item["odd"]
+
+    odd_combinada_final = round(odd_acumulada, 2) if bilhete_filtrado else 1.00
 
     return {
         "home_win": f"{p_casa}%",
@@ -140,12 +142,12 @@ def calculate_scout_projection(home, away):
         "away_win": f"{p_fora}%",
         "odd_justa": f"@{odd_justa}",
         "btts": f"Sim ({prob_btts}% de chance)",
-        "corners": f"Mais de 6.5 ({prob_escanteios}% de chance - Linha 70%+)",
-        "cards": f"Mais de 1.5 ({prob_cartoes}% de chance - Linha 70%+)",
-        "shots": f"Mais de 15.5 ({prob_finalizacoes}% de chance - Linha 70%+)",
+        "corners": f"Mais de 9.5 ({prob_escanteios}% de chance)",
+        "cards": f"Mais de 3.5 ({prob_cartoes}% de chance)",
+        "shots": f"Mais de 24.5 ({prob_finalizacoes}% de chance)",
         "recommendation": sugestao_escolhida,
-        "bilhete": bilhete_itens,
-        "odd_combinada": f"@{odd_combinada}"
+        "bilhete": bilhete_filtrado,
+        "odd_combinada": f"@{odd_combinada_final}"
     }
 
 HTML_TEMPLATE = """
@@ -159,15 +161,15 @@ HTML_TEMPLATE = """
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
     <div class="max-w-md mx-auto p-4 pb-16">
-        <!-- Header com Assinatura Luís Carlos (Tema Vermelho) -->
+        <!-- Header com Contador Discreto -->
         <header class="flex items-center justify-between mb-6 pt-2 border-b border-slate-800 pb-4">
             <div>
-                <h1 class="text-xl font-bold tracking-tight text-red-500">⚽ Scout & Odds Pro</h1>
-                <p class="text-xs text-slate-400">Análise Profissional por <span class="text-red-400 font-semibold">Luís Carlos</span></p>
+                <h1 class="text-xl font-bold tracking-tight text-emerald-400">⚽ Scout & Odds Pro</h1>
+                <p class="text-xs text-slate-400">Motor de Análise Estatística Avançada</p>
             </div>
             <div class="text-right">
                 <a href="/" class="text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300 hover:bg-slate-800 inline-block mb-1">Início</a>
-                <div class="text-[10px] text-slate-500 font-mono">Acessos: <span class="text-red-500 font-bold">{{ current_count }}/100</span></div>
+                <div class="text-[10px] text-slate-500 font-mono">Acessos: <span class="text-emerald-400 font-bold">{{ current_count }}/100</span></div>
             </div>
         </header>
 
@@ -178,7 +180,7 @@ HTML_TEMPLATE = """
             <form method="GET" action="/" class="space-y-4">
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1.5">Campeonato / Copa</label>
-                    <select name="league" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-red-500">
+                    <select name="league" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
                         {% for code, data in leagues.items() %}
                         <option value="{{ code }}" {% if code == selected_league %}selected{% endif %}>{{ data.name }}</option>
                         {% endfor %}
@@ -186,9 +188,9 @@ HTML_TEMPLATE = """
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1.5">Data do Jogo</label>
-                    <input type="date" name="date" value="{{ selected_date }}" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-red-500">
+                    <input type="date" name="date" value="{{ selected_date }}" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
                 </div>
-                <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-slate-50 font-bold py-3 rounded-xl text-sm transition-all shadow-lg shadow-red-600/20 cursor-pointer">
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all shadow-lg shadow-emerald-500/10 cursor-pointer">
                     Carregar Análises 🚀
                 </button>
             </form>
@@ -201,15 +203,15 @@ HTML_TEMPLATE = """
                 {% for match in matches %}
                 <div class="bg-slate-900/80 border border-slate-800/80 rounded-xl p-4 hover:border-slate-700 transition-all flex items-center justify-between">
                     <div class="space-y-1">
-                        <div class="text-xs text-red-400 font-semibold flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                        <div class="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                             {{ match.time }} - Pronto
                         </div>
                         <div class="text-sm font-bold text-slate-200">
                             {{ match.home }} <span class="text-slate-500 font-normal">vs</span> {{ match.away }}
                         </div>
                     </div>
-                    <a href="/analyze?home={{ match.home }}&away={{ match.away }}&date={{ selected_date }}" class="bg-slate-800 hover:bg-red-600 hover:text-slate-50 text-red-400 text-xs font-semibold px-3.5 py-2 rounded-lg transition-all border border-slate-700">
+                    <a href="/analyze?home={{ match.home }}&away={{ match.away }}&date={{ selected_date }}" class="bg-slate-800 hover:bg-emerald-500 hover:text-slate-950 text-emerald-400 text-xs font-semibold px-3.5 py-2 rounded-lg transition-all border border-slate-700">
                         Ver Análise ➔
                     </a>
                 </div>
@@ -221,16 +223,16 @@ HTML_TEMPLATE = """
         <!-- Painel de Análise Profissional -->
         <div class="space-y-4">
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl text-center">
-                <span class="text-xs uppercase tracking-wider text-red-400 font-semibold bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">Análise Profissional 🎯</span>
+                <span class="text-xs uppercase tracking-wider text-emerald-400 font-semibold bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">Análise Profissional 🎯</span>
                 <h2 class="text-lg font-bold text-slate-100 mt-3">{{ home }} vs {{ away }}</h2>
-                <p class="text-xs text-slate-400 mt-1">Data: {{ date }} | Analista: Luís Carlos</p>
+                <p class="text-xs text-slate-400 mt-1">Data: {{ date }}</p>
             </div>
 
             <!-- Recomendação e Diversidade de Mercados -->
-            <div class="bg-gradient-to-br from-red-950/40 to-slate-900 border border-red-500/30 rounded-2xl p-4">
+            <div class="bg-gradient-to-br from-emerald-950/40 to-slate-900 border border-emerald-500/30 rounded-2xl p-4">
                 <div class="flex justify-between items-center mb-1">
-                    <div class="text-xs font-semibold text-red-400">💡 Sugestão de Mercado & Odd Ideal</div>
-                    <span class="text-xs bg-red-500/20 text-red-300 font-bold px-2 py-0.5 rounded border border-red-500/30">{{ projection.odd_justa }}</span>
+                    <div class="text-xs font-semibold text-emerald-400">💡 Sugestão de Mercado & Odd Ideal</div>
+                    <span class="text-xs bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-500/30">{{ projection.odd_justa }}</span>
                 </div>
                 <div class="text-sm font-bold text-slate-200">{{ projection.recommendation }}</div>
                 <div class="text-xs text-slate-400 mt-1">Análise dinâmica baseada em valor estatístico esperado.</div>
@@ -242,7 +244,7 @@ HTML_TEMPLATE = """
                 <div class="grid grid-cols-3 gap-2 text-center">
                     <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
                         <div class="text-xs text-slate-400">Casa</div>
-                        <div class="text-base font-bold text-red-400 mt-1">{{ projection.home_win }}</div>
+                        <div class="text-base font-bold text-emerald-400 mt-1">{{ projection.home_win }}</div>
                     </div>
                     <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
                         <div class="text-xs text-slate-400">Empate</div>
@@ -255,57 +257,59 @@ HTML_TEMPLATE = """
                 </div>
             </div>
 
-            <!-- Scout Avançado com Porcentagens (70%+) -->
+            <!-- Scout Avançado com Porcentagens -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-                <h3 class="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider">Métricas de Scout (Faixa 70%+)</h3>
+                <h3 class="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider">Métricas de Scout e Probabilidades</h3>
                 <div class="space-y-3 text-sm">
                     <div class="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
                         <span class="text-slate-400">🚩 Escanteios</span>
-                        <span class="font-bold text-red-400 text-xs">{{ projection.corners }}</span>
+                        <span class="font-bold text-slate-200">{{ projection.corners }}</span>
                     </div>
                     <div class="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
                         <span class="text-slate-400">🟨 Cartões Amarelos</span>
-                        <span class="font-bold text-red-400 text-xs">{{ projection.cards }}</span>
+                        <span class="font-bold text-slate-200">{{ projection.cards }}</span>
                     </div>
                     <div class="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
                         <span class="text-slate-400">🎯 Finalizações</span>
-                        <span class="font-bold text-red-400 text-xs">{{ projection.shots }}</span>
+                        <span class="font-bold text-slate-200">{{ projection.shots }}</span>
                     </div>
                     <div class="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
                         <span class="text-slate-400">⚽ Ambas Marcam (BTTS)</span>
-                        <span class="font-bold text-red-400 text-xs">{{ projection.btts }}</span>
+                        <span class="font-bold text-emerald-400">{{ projection.btts }}</span>
                     </div>
                 </div>
             </div>
 
-            <!-- BILHETE INTELIGENTE DE ALTA PROBABILIDADE (70%+) -->
-            <div class="bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-red-600/50 rounded-2xl p-4 shadow-xl shadow-red-600/10">
+            <!-- BILHETE INTELIGENTE DE ALTA PROBABILIDADE (RODAPÉ - FILTRO 70%+) -->
+            <div class="bg-slate-900 border border-emerald-500/40 rounded-2xl p-4 shadow-xl">
                 <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
                     <div>
-                        <span class="text-[10px] uppercase tracking-widest bg-red-600 text-slate-50 font-extrabold px-2 py-0.5 rounded">Bilhete Pró 70%+</span>
-                        <h3 class="text-sm font-bold text-slate-100 mt-1">Seleções com Alta Confiabilidade</h3>
+                        <span class="text-[10px] uppercase tracking-wider bg-emerald-500/10 text-emerald-400 font-bold px-2 py-0.5 rounded border border-emerald-500/20">Bilhete Inteligente 70%+</span>
+                        <h3 class="text-sm font-bold text-slate-100 mt-1">Seleções Validadas Estatisticamente</h3>
                     </div>
                     <div class="text-right">
                         <span class="text-xs text-slate-400">Odd Combinada:</span>
-                        <div class="text-base font-extrabold text-red-500">@{{ projection.odd_combinada }}</div>
+                        <div class="text-sm font-bold text-emerald-400">{{ projection.odd_combinada }}</div>
                     </div>
                 </div>
 
-                <div class="space-y-2 mb-4">
+                {% if projection.bilhete %}
+                <div class="space-y-2 mb-3">
                     {% for item in projection.bilhete %}
-                    <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-2.5 flex items-center justify-between text-xs">
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between text-xs">
                         <div>
                             <div class="font-bold text-slate-200">{{ item.mercado }}</div>
-                            <div class="text-[10px] text-red-400 font-semibold">Probabilidade: {{ item.prob }}</div>
+                            <div class="text-[10px] text-emerald-400">Probabilidade: {{ item.prob_str }}</div>
                         </div>
-                        <span class="bg-slate-900 border border-slate-700 px-2 py-1 rounded text-slate-300 font-bold">@{{ item.odd }}</span>
+                        <span class="text-slate-300 font-bold">@{{ item.odd }}</span>
                     </div>
                     {% endfor %}
                 </div>
-
-                <div class="text-[10px] text-center text-slate-400 bg-slate-900/50 p-2 rounded-lg border border-slate-800">
-                    ℹ️ Linhas e probabilidades recalculadas a partir de 70% pelo analista Luís Carlos.
+                {% else %}
+                <div class="text-xs text-slate-400 text-center py-3 bg-slate-950 rounded-xl border border-slate-800">
+                    Nenhum mercado atingiu o filtro mínimo de 70% de probabilidade nesta partida.
                 </div>
+                {% endif %}
             </div>
 
             <a href="/" class="block text-center w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-3 rounded-xl text-sm transition-all border border-slate-700">
